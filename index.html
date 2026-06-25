@@ -1,0 +1,1514 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RekapAbsen — Sistem Absensi Sekolah</title>
+  <link rel="icon" href="https://axsapari.github.io/absen9/logo.png" onerror="this.remove()" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- SheetJS for Excel parsing and export -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+
+  <!-- Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <style>
+    /* ===== CSS Variables / Design Tokens ===== */
+    :root {
+      --bg:         #F7F8FA;
+      --surface:    #FFFFFF;
+      --surface2:   #F0F2F5;
+      --border:     #E4E7EC;
+      --text:       #111827;
+      --text2:      #6B7280;
+      --text3:      #9CA3AF;
+      --accent:     #2563EB;
+      --accent-l:   #EFF6FF;
+      --accent-d:   #1D4ED8;
+      --green:      #10B981;
+      --green-l:    #ECFDF5;
+      --red:        #EF4444;
+      --red-l:      #FEF2F2;
+      --yellow:     #F59E0B;
+      --yellow-l:   #FFFBEB;
+      --purple:     #8B5CF6;
+      --purple-l:   #F5F3FF;
+      --shadow-sm:  0 1px 3px rgba(0,0,0,.08);
+      --shadow:     0 4px 16px rgba(0,0,0,.08);
+      --shadow-lg:  0 8px 32px rgba(0,0,0,.12);
+      --radius:     12px;
+      --radius-sm:  8px;
+      --radius-lg:  16px;
+      --sidebar-w:  240px;
+      --header-h:   60px;
+      --transition: all .18s ease;
+    }
+
+    [data-theme="dark"] {
+      --bg:         #0F1117;
+      --surface:    #1A1D27;
+      --surface2:   #242736;
+      --border:     #2E3347;
+      --text:       #F3F4F6;
+      --text2:      #9CA3AF;
+      --text3:      #6B7280;
+      --accent:     #3B82F6;
+      --accent-l:   #1E3A5F;
+      --accent-d:   #2563EB;
+      --green-l:    #052E16;
+      --red-l:      #2D0A0A;
+      --yellow-l:   #2D1A00;
+      --purple-l:   #1E1042;
+      --shadow-sm:  0 1px 3px rgba(0,0,0,.3);
+      --shadow:     0 4px 16px rgba(0,0,0,.3);
+      --shadow-lg:  0 8px 32px rgba(0,0,0,.4);
+    }
+
+    /* ===== Reset ===== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 14px; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+      transition: background .2s, color .2s;
+    }
+
+    /* ===== Sidebar ===== */
+    .sidebar {
+      width: var(--sidebar-w);
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      z-index: 100;
+      transition: var(--transition);
+    }
+
+    .sidebar-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 16px 20px;
+      height: var(--header-h);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-logo {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      object-fit: contain;
+      flex-shrink: 0;
+      background: var(--accent-l);
+    }
+
+    .sidebar-logo-fallback {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: 700;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    .sidebar-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.2;
+    }
+
+    .sidebar-subtitle {
+      font-size: 10px;
+      color: var(--text2);
+      font-weight: 400;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 0;
+    }
+
+    .nav-section {
+      padding: 4px 12px 2px;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text3);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-top: 8px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      margin: 2px 8px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      color: var(--text2);
+      font-size: 13px;
+      font-weight: 500;
+      transition: var(--transition);
+      user-select: none;
+    }
+
+    .nav-item:hover { background: var(--surface2); color: var(--text); }
+    .nav-item.active { background: var(--accent-l); color: var(--accent); }
+    .nav-item .icon { font-size: 16px; width: 20px; text-align: center; flex-shrink: 0; }
+
+    .sidebar-footer {
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--text3);
+      text-align: center;
+    }
+
+    /* ===== Main Layout ===== */
+    .main-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ===== Top Header ===== */
+    .topbar {
+      height: var(--header-h);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      gap: 16px;
+      flex-shrink: 0;
+    }
+
+    .topbar-left { display: flex; align-items: center; gap: 12px; }
+    .topbar-title { font-size: 16px; font-weight: 600; }
+    .topbar-subtitle { font-size: 12px; color: var(--text2); }
+
+    .topbar-right { display: flex; align-items: center; gap: 8px; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border-radius: var(--radius-sm);
+      border: none;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      font-family: inherit;
+      transition: var(--transition);
+      white-space: nowrap;
+    }
+
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-d); }
+    .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: var(--border); }
+    .btn-danger { background: var(--red); color: #fff; }
+    .btn-danger:hover { opacity: .85; }
+    .btn-success { background: var(--green); color: #fff; }
+    .btn-success:hover { opacity: .85; }
+    .btn-icon { padding: 7px; }
+
+    .theme-toggle {
+      width: 36px;
+      height: 20px;
+      background: var(--border);
+      border-radius: 10px;
+      position: relative;
+      cursor: pointer;
+      border: none;
+      transition: background .2s;
+      flex-shrink: 0;
+    }
+
+    .theme-toggle.active { background: var(--accent); }
+
+    .theme-toggle::after {
+      content: '';
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      background: #fff;
+      border-radius: 50%;
+      top: 3px;
+      left: 3px;
+      transition: transform .2s;
+    }
+
+    .theme-toggle.active::after { transform: translateX(16px); }
+
+    /* ===== Content Area ===== */
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 24px;
+    }
+
+    /* ===== Pages ===== */
+    .page { display: none; animation: fadeIn .2s ease; }
+    .page.active { display: block; }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ===== Grid & Cards ===== */
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px 0;
+    }
+
+    .card-title { font-size: 13px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: .04em; }
+    .card-body { padding: 12px 20px 20px; }
+
+    /* ===== Stat Cards ===== */
+    .stat-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .stat-header { display: flex; justify-content: space-between; align-items: center; }
+    .stat-label { font-size: 12px; color: var(--text2); font-weight: 500; }
+    .stat-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+    .stat-value { font-size: 26px; font-weight: 700; color: var(--text); line-height: 1; }
+    .stat-sub { font-size: 11px; color: var(--text3); }
+    .stat-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; padding: 2px 6px; border-radius: 4px; }
+    .badge-up { background: var(--green-l); color: var(--green); }
+    .badge-down { background: var(--red-l); color: var(--red); }
+
+    /* ===== Table ===== */
+    .table-wrap { overflow-x: auto; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th {
+      padding: 10px 14px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text2);
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      vertical-align: middle;
+    }
+
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--surface2); }
+
+    /* ===== Status Badges ===== */
+    .status {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .status-H { background: var(--green-l); color: var(--green); }
+    .status-S { background: var(--yellow-l); color: var(--yellow); }
+    .status-I { background: var(--accent-l); color: var(--accent); }
+    .status-A { background: var(--red-l); color: var(--red); }
+    .status-T { background: var(--purple-l); color: var(--purple); }
+
+    /* ===== Form Elements ===== */
+    .form-group { margin-bottom: 14px; }
+    .form-label { display: block; font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 6px; }
+
+    .form-control {
+      width: 100%;
+      padding: 8px 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-size: 13px;
+      font-family: inherit;
+      transition: border-color .15s;
+    }
+
+    .form-control:focus { outline: none; border-color: var(--accent); }
+    .form-control::placeholder { color: var(--text3); }
+
+    select.form-control { cursor: pointer; }
+
+    /* ===== Filter Bar ===== */
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .filter-bar .form-control { width: auto; min-width: 140px; }
+
+    /* ===== Search ===== */
+    .search-wrap { position: relative; }
+    .search-wrap .form-control { padding-left: 34px; }
+    .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text3); font-size: 14px; }
+
+    /* ===== Modal ===== */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.45);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-backdrop.open { display: flex; }
+
+    .modal {
+      background: var(--surface);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      width: 100%;
+      max-width: 520px;
+      max-height: 90vh;
+      overflow-y: auto;
+      animation: slideUp .2s ease;
+    }
+
+    .modal-wide { max-width: 780px; }
+
+    @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .modal-title { font-size: 15px; font-weight: 700; }
+    .modal-close { background: none; border: none; cursor: pointer; color: var(--text2); font-size: 18px; padding: 2px 6px; border-radius: 4px; }
+    .modal-close:hover { background: var(--surface2); }
+    .modal-body { padding: 20px 24px; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 16px 24px; border-top: 1px solid var(--border); }
+
+    /* ===== Upload Zone ===== */
+    .upload-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 32px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: var(--transition);
+      background: var(--surface2);
+    }
+
+    .upload-zone:hover, .upload-zone.dragover { border-color: var(--accent); background: var(--accent-l); }
+    .upload-zone-icon { font-size: 32px; margin-bottom: 8px; }
+    .upload-zone-text { font-size: 13px; color: var(--text2); }
+    .upload-zone-hint { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+    /* ===== Progress bar ===== */
+    .progress-bar {
+      height: 6px;
+      background: var(--surface2);
+      border-radius: 3px;
+      overflow: hidden;
+      margin: 8px 0;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 3px;
+      transition: width .3s ease;
+    }
+
+    /* ===== Toast ===== */
+    #toast-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .toast {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      box-shadow: var(--shadow);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      min-width: 260px;
+      animation: toastIn .2s ease;
+    }
+
+    .toast.success { border-left: 3px solid var(--green); }
+    .toast.error { border-left: 3px solid var(--red); }
+    .toast.info { border-left: 3px solid var(--accent); }
+
+    @keyframes toastIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    /* ===== Loading ===== */
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 48px;
+      color: var(--text2);
+      font-size: 13px;
+      gap: 10px;
+    }
+
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ===== Empty State ===== */
+    .empty {
+      text-align: center;
+      padding: 48px 20px;
+      color: var(--text2);
+    }
+
+    .empty-icon { font-size: 36px; margin-bottom: 12px; }
+    .empty-text { font-size: 14px; font-weight: 500; }
+    .empty-sub { font-size: 12px; color: var(--text3); margin-top: 4px; }
+
+    /* ===== Section spacing ===== */
+    .section { margin-bottom: 20px; }
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .section-title { font-size: 14px; font-weight: 600; }
+
+    /* ===== Chart Container ===== */
+    .chart-container { position: relative; height: 200px; }
+
+    /* ===== Rank List ===== */
+    .rank-list { display: flex; flex-direction: column; gap: 8px; }
+
+    .rank-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      background: var(--surface2);
+      border-radius: var(--radius-sm);
+    }
+
+    .rank-num {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .rank-num.gold { background: #F59E0B; }
+    .rank-num.silver { background: #9CA3AF; }
+    .rank-num.bronze { background: #CD7F32; }
+
+    .rank-info { flex: 1; min-width: 0; }
+    .rank-name { font-size: 13px; font-weight: 600; truncate }
+    .rank-meta { font-size: 11px; color: var(--text2); }
+    .rank-value { font-size: 14px; font-weight: 700; }
+
+    /* ===== Config Page ===== */
+    .config-section {
+      background: var(--surface);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
+
+    .config-section-header {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .config-section-body { padding: 16px 20px; }
+
+    /* ===== Period Toggle ===== */
+    .period-tabs {
+      display: inline-flex;
+      background: var(--surface2);
+      border-radius: var(--radius-sm);
+      padding: 3px;
+      gap: 2px;
+    }
+
+    .period-tab {
+      padding: 5px 14px;
+      border-radius: 6px;
+      border: none;
+      background: transparent;
+      color: var(--text2);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: inherit;
+      transition: var(--transition);
+    }
+
+    .period-tab.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
+
+    /* ===== Heatmap ===== */
+    .heatmap-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      font-size: 10px;
+    }
+
+    .heatmap-row { display: flex; align-items: center; gap: 3px; }
+    .heatmap-label { width: 28px; color: var(--text3); text-align: right; flex-shrink: 0; }
+    .heatmap-cell {
+      width: 14px;
+      height: 14px;
+      border-radius: 2px;
+      background: var(--surface2);
+      flex-shrink: 0;
+    }
+
+    /* ===== Attendance Calendar ===== */
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+    }
+
+    .cal-day-header {
+      text-align: center;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text3);
+      padding: 4px 0;
+    }
+
+    .cal-day {
+      aspect-ratio: 1;
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: default;
+    }
+
+    .cal-day.empty { opacity: 0; pointer-events: none; }
+    .cal-day.weekend { color: var(--text3); background: var(--surface2); }
+    .cal-day.holiday { color: var(--purple); background: var(--purple-l); }
+    .cal-day.hadir { background: var(--green-l); color: var(--green); }
+    .cal-day.alpha { background: var(--red-l); color: var(--red); }
+    .cal-day.sakit { background: var(--yellow-l); color: var(--yellow); }
+    .cal-day.izin { background: var(--accent-l); color: var(--accent); }
+    .cal-day.terlambat { background: var(--purple-l); color: var(--purple); }
+    .cal-day.today { ring: 2px solid var(--accent); }
+
+    /* ===== Responsive ===== */
+    @media (max-width: 1200px) {
+      .grid-4 { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .grid-3 { grid-template-columns: 1fr; }
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+
+    /* ===== Misc ===== */
+    .divider { height: 1px; background: var(--border); margin: 12px 0; }
+    .text-sm { font-size: 12px; }
+    .text-xs { font-size: 11px; }
+    .text-muted { color: var(--text2); }
+    .text-center { text-align: center; }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+    .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .flex { display: flex; align-items: center; }
+    .flex-between { display: flex; align-items: center; justify-content: space-between; }
+    .gap-2 { gap: 8px; }
+    .gap-3 { gap: 12px; }
+    .mt-1 { margin-top: 4px; }
+    .mt-2 { margin-top: 8px; }
+    .mt-3 { margin-top: 12px; }
+    .mb-2 { margin-bottom: 8px; }
+    .mb-3 { margin-bottom: 12px; }
+    .hidden { display: none !important; }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 500;
+      background: var(--surface2);
+      color: var(--text2);
+      border: 1px solid var(--border);
+    }
+
+    .tag-green { background: var(--green-l); color: var(--green); border-color: transparent; }
+    .tag-red { background: var(--red-l); color: var(--red); border-color: transparent; }
+    .tag-blue { background: var(--accent-l); color: var(--accent); border-color: transparent; }
+
+    .setup-banner {
+      background: var(--accent-l);
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--accent);
+      font-size: 13px;
+    }
+  </style>
+</head>
+
+<body>
+
+<!-- ===================== SIDEBAR ===================== -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <img id="sidebar-logo" src="https://axsapari.github.io/absen9/logo.png"
+         class="sidebar-logo" alt="Logo"
+         onerror="this.style.display='none'; document.getElementById('sidebar-logo-fb').style.display='flex';" />
+    <div id="sidebar-logo-fb" class="sidebar-logo-fallback" style="display:none">A</div>
+    <div>
+      <div class="sidebar-title" id="school-name-sidebar">RekapAbsen</div>
+      <div class="sidebar-subtitle">Sistem Absensi Sekolah</div>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section">Utama</div>
+    <div class="nav-item active" data-page="dashboard">
+      <span class="icon">📊</span> Dashboard
+    </div>
+    <div class="nav-item" data-page="absen-harian">
+      <span class="icon">📅</span> Absen Harian
+    </div>
+    <div class="nav-item" data-page="rekap">
+      <span class="icon">📋</span> Rekap Absensi
+    </div>
+
+    <div class="nav-section">Data</div>
+    <div class="nav-item" data-page="siswa">
+      <span class="icon">👥</span> Data Siswa
+    </div>
+    <div class="nav-item" data-page="import-absen">
+      <span class="icon">📥</span> Import Mesin Absen
+    </div>
+    <div class="nav-item" data-page="kelas">
+      <span class="icon">🏫</span> Data Kelas
+    </div>
+    <div class="nav-item" data-page="libur">
+      <span class="icon">🗓️</span> Hari Libur
+    </div>
+
+    <div class="nav-section">Laporan</div>
+    <div class="nav-item" data-page="laporan">
+      <span class="icon">📈</span> Cetak / Export
+    </div>
+
+    <div class="nav-section">Sistem</div>
+    <div class="nav-item" data-page="backup">
+      <span class="icon">💾</span> Backup & Restore
+    </div>
+    <div class="nav-item" data-page="pengaturan">
+      <span class="icon">⚙️</span> Pengaturan
+    </div>
+  </nav>
+
+  <div class="sidebar-footer">
+    Dikembangkan oleh<br />
+    <strong>Agus Sugiharto Sapari, S.Pd.</strong>
+  </div>
+</aside>
+
+<!-- ===================== MAIN ===================== -->
+<div class="main-wrap">
+
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <div>
+        <div class="topbar-title" id="topbar-title">Dashboard</div>
+        <div class="topbar-subtitle" id="topbar-subtitle">Ringkasan kehadiran siswa</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <select class="form-control" id="global-class-filter" style="width:110px" title="Filter Kelas">
+        <option value="">Semua Kelas</option>
+      </select>
+      <select class="form-control" id="global-period-year" style="width:90px">
+        <option value="2026">2026</option>
+        <option value="2025">2025</option>
+      </select>
+      <span style="font-size:12px;color:var(--text2)">🌙</span>
+      <button class="theme-toggle" id="theme-toggle" title="Ganti tema"></button>
+      <span style="font-size:12px;color:var(--text2)">☀️</span>
+    </div>
+  </header>
+
+  <!-- CONTENT -->
+  <main class="content">
+
+    <!-- ========== DASHBOARD ========== -->
+    <div class="page active" id="page-dashboard">
+
+      <div id="setup-banner" class="setup-banner hidden">
+        ⚠️ <span>Konfigurasi Supabase belum lengkap. Silakan atur di halaman <strong>Pengaturan</strong> terlebih dahulu.</span>
+        <button class="btn btn-primary" style="margin-left:auto;padding:6px 12px" onclick="navigate('pengaturan')">Pengaturan →</button>
+      </div>
+
+      <!-- Stat Cards -->
+      <div class="grid-4 section">
+        <div class="stat-card">
+          <div class="stat-header">
+            <span class="stat-label">Total Siswa</span>
+            <div class="stat-icon" style="background:var(--accent-l)">👥</div>
+          </div>
+          <div class="stat-value" id="stat-total-siswa">—</div>
+          <div class="stat-sub">Siswa terdaftar aktif</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-header">
+            <span class="stat-label">Hadir Hari Ini</span>
+            <div class="stat-icon" style="background:var(--green-l)">✅</div>
+          </div>
+          <div class="stat-value" id="stat-hadir-hari-ini">—</div>
+          <div class="stat-sub" id="stat-pct-hadir">% kehadiran</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-header">
+            <span class="stat-label">Tidak Hadir</span>
+            <div class="stat-icon" style="background:var(--red-l)">❌</div>
+          </div>
+          <div class="stat-value" id="stat-alpha">—</div>
+          <div class="stat-sub" id="stat-alpha-sub">Alpha + Sakit + Izin</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-header">
+            <span class="stat-label">Hari Efektif Bulan Ini</span>
+            <div class="stat-icon" style="background:var(--yellow-l)">📅</div>
+          </div>
+          <div class="stat-value" id="stat-hari-efektif">—</div>
+          <div class="stat-sub" id="stat-hari-sub">Exclude libur & weekend</div>
+        </div>
+      </div>
+
+      <!-- Charts + Rankings -->
+      <div class="grid-3 section">
+        <!-- Trend Chart -->
+        <div class="card" style="grid-column: span 2;">
+          <div class="card-header">
+            <span class="card-title">Tren Kehadiran Bulanan</span>
+            <div class="period-tabs">
+              <button class="period-tab active" data-period="monthly" onclick="switchTrend('monthly',this)">Bulanan</button>
+              <button class="period-tab" data-period="weekly" onclick="switchTrend('weekly',this)">Mingguan</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="chart-container">
+              <canvas id="trend-chart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Status donut -->
+        <div class="card">
+          <div class="card-header"><span class="card-title">Status Bulan Ini</span></div>
+          <div class="card-body">
+            <div class="chart-container" style="height:180px">
+              <canvas id="donut-chart"></canvas>
+            </div>
+            <div id="donut-legend" style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px;justify-content:center"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Top Rankings -->
+      <div class="grid-3 section">
+        <!-- Most Absent -->
+        <div class="card">
+          <div class="card-header"><span class="card-title">🚨 Alpha Terbanyak</span></div>
+          <div class="card-body">
+            <div class="rank-list" id="rank-alpha"></div>
+          </div>
+        </div>
+        <!-- Most Sick -->
+        <div class="card">
+          <div class="card-header"><span class="card-title">🤒 Sakit Terbanyak</span></div>
+          <div class="card-body">
+            <div class="rank-list" id="rank-sakit"></div>
+          </div>
+        </div>
+        <!-- Most Present (rajin) -->
+        <div class="card">
+          <div class="card-header"><span class="card-title">🌟 Paling Rajin</span></div>
+          <div class="card-body">
+            <div class="rank-list" id="rank-rajin"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Per-class summary -->
+      <div class="section">
+        <div class="section-header">
+          <span class="section-title">Ringkasan Per Kelas – Bulan Ini</span>
+          <select class="form-control" id="dash-month" style="width:130px" onchange="loadDashboard()">
+          </select>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Kelas</th><th>Total Siswa</th><th>Hadir</th><th>Sakit</th><th>Izin</th><th>Alpha</th><th>Terlambat</th><th>% Hadir</th>
+                </tr>
+              </thead>
+              <tbody id="class-summary-body">
+                <tr><td colspan="8" class="text-center text-muted">Memuat data…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== ABSEN HARIAN ========== -->
+    <div class="page" id="page-absen-harian">
+      <div class="filter-bar">
+        <select class="form-control" id="ah-class" style="width:120px">
+          <option value="">Pilih Kelas</option>
+        </select>
+        <input type="date" class="form-control" id="ah-date" style="width:150px" />
+        <button class="btn btn-primary" onclick="loadAbsenHarian()">🔍 Tampilkan</button>
+        <button class="btn btn-secondary" onclick="saveAbsenHarian()">💾 Simpan Absensi</button>
+        <div style="margin-left:auto">
+          <button class="btn btn-secondary" onclick="exportAbsenHarian()">📤 Export Hari Ini</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th><th>NIS</th><th>Nama Siswa</th><th>Kelas</th>
+                <th>Status</th><th>Masuk</th><th>Pulang</th><th>Keterangan</th>
+              </tr>
+            </thead>
+            <tbody id="absen-harian-body">
+              <tr><td colspan="8" class="text-center text-muted">Pilih kelas dan tanggal</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== REKAP ========== -->
+    <div class="page" id="page-rekap">
+      <div class="filter-bar">
+        <select class="form-control" id="rek-class" style="width:120px">
+          <option value="">Semua Kelas</option>
+        </select>
+        <div class="period-tabs">
+          <button class="period-tab active" onclick="switchRekap('bulan',this)">Bulanan</button>
+          <button class="period-tab" onclick="switchRekap('semester',this)">Semester</button>
+          <button class="period-tab" onclick="switchRekap('tahun',this)">Tahunan</button>
+          <button class="period-tab" onclick="switchRekap('custom',this)">Custom</button>
+        </div>
+        <select class="form-control" id="rek-month" style="width:130px"></select>
+        <div id="rek-custom-range" class="hidden flex gap-2">
+          <input type="date" class="form-control" id="rek-start" style="width:140px" />
+          <span style="color:var(--text2);line-height:34px">s/d</span>
+          <input type="date" class="form-control" id="rek-end" style="width:140px" />
+        </div>
+        <button class="btn btn-primary" onclick="loadRekap()">🔍 Tampilkan</button>
+        <div style="margin-left:auto">
+          <button class="btn btn-success" onclick="exportRekap()">📥 Export Excel</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th><th>NIS</th><th>Nama Siswa</th><th>Kelas</th>
+                <th>Hari Efektif</th><th>Hadir</th><th>Sakit</th><th>Izin</th><th>Alpha</th><th>Terlambat</th>
+                <th>% Hadir</th><th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="rekap-body">
+              <tr><td colspan="12" class="text-center text-muted">Pilih filter dan klik Tampilkan</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== SISWA ========== -->
+    <div class="page" id="page-siswa">
+      <div class="filter-bar">
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" class="form-control" id="siswa-search" placeholder="Cari nama / NIS…" oninput="filterSiswa()" style="width:220px" />
+        </div>
+        <select class="form-control" id="siswa-class-filter" style="width:120px" onchange="filterSiswa()">
+          <option value="">Semua Kelas</option>
+        </select>
+        <div style="margin-left:auto; display:flex; gap:8px;">
+          <button class="btn btn-secondary" onclick="downloadTemplateImportSiswa()">⬇️ Template Import</button>
+          <button class="btn btn-secondary" onclick="openModal('modal-import-siswa')">📥 Import Siswa</button>
+          <button class="btn btn-primary" onclick="openModal('modal-tambah-siswa')">➕ Tambah Siswa</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th><th>ID Mesin</th><th>NIS</th><th>Nama Siswa</th><th>Kelas</th><th>JK</th><th>Status</th><th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="siswa-body">
+              <tr><td colspan="8" class="text-center text-muted">Memuat data…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;">
+          <span class="text-sm text-muted" id="siswa-count">0 siswa</span>
+          <div id="siswa-pagination" class="flex gap-2"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== IMPORT MESIN ABSEN ========== -->
+    <div class="page" id="page-import-absen">
+      <div class="grid-2 section">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Import File Mesin Fingerprint</span></div>
+          <div class="card-body">
+            <p class="text-sm text-muted mb-3">Upload file XLS output mesin absen fingerprint (format TIMMY / BioFinger). Sistem akan otomatis membaca kolom tanggal, nama, dan waktu tap.</p>
+            <div class="upload-zone" id="import-drop-zone" onclick="document.getElementById('import-file-input').click()">
+              <div class="upload-zone-icon">📂</div>
+              <div class="upload-zone-text">Klik atau drag & drop file XLS / XLSX</div>
+              <div class="upload-zone-hint">Bisa upload beberapa file sekaligus</div>
+            </div>
+            <input type="file" id="import-file-input" accept=".xls,.xlsx" multiple style="display:none" onchange="handleImportFile(this.files)" />
+
+            <div id="import-progress-wrap" class="hidden mt-3">
+              <div class="flex-between mb-2">
+                <span class="text-sm" id="import-status-text">Memproses…</span>
+                <span class="text-sm font-mono" id="import-pct">0%</span>
+              </div>
+              <div class="progress-bar"><div class="progress-fill" id="import-progress" style="width:0%"></div></div>
+            </div>
+
+            <div id="import-log" class="hidden mt-3" style="max-height:180px;overflow-y:auto;background:var(--surface2);border-radius:var(--radius-sm);padding:10px;font-size:11px;font-family:monospace;color:var(--text2)"></div>
+          </div>
+        </div>
+
+        <!-- Import History -->
+        <div class="card">
+          <div class="card-header"><span class="card-title">Riwayat Import</span></div>
+          <div class="card-body" style="padding:0">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>Waktu</th><th>File</th><th>Berhasil</th><th>Status</th></tr>
+                </thead>
+                <tbody id="import-history-body">
+                  <tr><td colspan="4" class="text-center text-muted">Belum ada riwayat</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Panduan Format -->
+      <div class="card">
+        <div class="card-header"><span class="card-title">ℹ️ Format yang Didukung</span></div>
+        <div class="card-body">
+          <div class="grid-3">
+            <div>
+              <div class="text-sm font-bold mb-2">Sheet "Detail Absensi"</div>
+              <div class="text-xs text-muted">Format per-siswa dengan baris nama dan baris waktu tap per tanggal. Contoh: <code>ID:1 Nama:Budi Dept.:9A</code></div>
+            </div>
+            <div>
+              <div class="text-sm font-bold mb-2">Sheet "Ringkasan Laporan"</div>
+              <div class="text-xs text-muted">Tabel ringkasan: kolom ID, Nama, Dept., jam kerja, keterlambatan, dan hari kerja.</div>
+            </div>
+            <div>
+              <div class="text-sm font-bold mb-2">Format Waktu</div>
+              <div class="text-xs text-muted">Mesin menyimpan semua tap dalam satu sel, misal: <code>06:15 06:17 14:20</code>. Tap pertama = masuk, tap terakhir = pulang.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== KELAS ========== -->
+    <div class="page" id="page-kelas">
+      <div class="filter-bar">
+        <div style="margin-left:auto">
+          <button class="btn btn-primary" onclick="openModal('modal-tambah-kelas')">➕ Tambah Kelas</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>#</th><th>Nama Kelas</th><th>Wali Kelas</th><th>Tahun Ajaran</th><th>Jumlah Siswa</th><th>Aksi</th></tr>
+            </thead>
+            <tbody id="kelas-body">
+              <tr><td colspan="6" class="text-center text-muted">Memuat data…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== HARI LIBUR ========== -->
+    <div class="page" id="page-libur">
+      <div class="filter-bar">
+        <select class="form-control" id="libur-year-filter" style="width:100px" onchange="loadLibur()">
+          <option value="2026">2026</option><option value="2025">2025</option>
+        </select>
+        <div style="margin-left:auto; display:flex; gap:8px;">
+          <button class="btn btn-secondary" onclick="seedNasionalHolidays()">🔄 Segarkan Libur Nasional</button>
+          <button class="btn btn-primary" onclick="openModal('modal-tambah-libur')">➕ Tambah Libur Custom</button>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Daftar Hari Libur</span></div>
+          <div class="card-body" style="padding:0">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>Tanggal</th><th>Nama Libur</th><th>Tipe</th><th>Aksi</th></tr>
+                </thead>
+                <tbody id="libur-body">
+                  <tr><td colspan="4" class="text-center text-muted">Memuat…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Kalender Libur <span id="libur-cal-month"></span></span></div>
+          <div class="card-body">
+            <div class="cal-grid" id="libur-calendar"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== LAPORAN / EXPORT ========== -->
+    <div class="page" id="page-laporan">
+      <div class="grid-2 section">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Export Rekap Absensi</span></div>
+          <div class="card-body">
+            <div class="form-group">
+              <label class="form-label">Kelas</label>
+              <select class="form-control" id="lap-class">
+                <option value="">Semua Kelas</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Periode</label>
+              <div class="period-tabs mb-2">
+                <button class="period-tab active" onclick="switchLapPeriod('bulan',this)">Bulanan</button>
+                <button class="period-tab" onclick="switchLapPeriod('semester',this)">Semester</button>
+                <button class="period-tab" onclick="switchLapPeriod('tahun',this)">Tahunan</button>
+                <button class="period-tab" onclick="switchLapPeriod('custom',this)">Custom</button>
+              </div>
+              <select class="form-control" id="lap-month"></select>
+              <div id="lap-custom-range" class="hidden mt-2" style="display:flex;gap:8px;align-items:center">
+                <input type="date" class="form-control" id="lap-start" />
+                <span class="text-muted">s/d</span>
+                <input type="date" class="form-control" id="lap-end" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Format Export</label>
+              <select class="form-control" id="lap-format">
+                <option value="rekap">Rekap Per Siswa (Ringkasan)</option>
+                <option value="detail">Detail Per Hari</option>
+                <option value="kelas">Rekap Per Kelas</option>
+              </select>
+            </div>
+            <button class="btn btn-success" style="width:100%" onclick="doExportLaporan()">
+              📥 Export ke Excel (.xlsx)
+            </button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><span class="card-title">Preview Laporan</span></div>
+          <div class="card-body">
+            <div id="lap-preview" class="empty">
+              <div class="empty-icon">📊</div>
+              <div class="empty-text">Preview akan muncul di sini</div>
+              <div class="empty-sub">Pilih parameter lalu klik Export</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== BACKUP & RESTORE ========== -->
+    <div class="page" id="page-backup">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><span class="card-title">💾 Backup Data</span></div>
+          <div class="card-body">
+            <p class="text-sm text-muted mb-3">Unduh semua data ke file JSON lokal sebagai cadangan.</p>
+            <div class="form-group">
+              <label class="form-label">Pilih Data</label>
+              <select class="form-control" id="backup-type">
+                <option value="full">Backup Penuh (semua data)</option>
+                <option value="attendance">Hanya Data Absensi</option>
+                <option value="students">Hanya Data Siswa</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" style="width:100%" onclick="doBackup()">⬇️ Download Backup</button>
+            <div class="divider"></div>
+            <div class="text-sm font-bold mb-2">Riwayat Backup</div>
+            <div id="backup-history" class="text-sm text-muted">Belum ada riwayat</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><span class="card-title">🔄 Restore Data</span></div>
+          <div class="card-body">
+            <p class="text-sm text-muted mb-3">Upload file backup JSON untuk memulihkan data. <strong>Perhatian:</strong> Restore akan menimpa data yang sudah ada.</p>
+            <div class="upload-zone" onclick="document.getElementById('restore-file').click()">
+              <div class="upload-zone-icon">📂</div>
+              <div class="upload-zone-text">Klik untuk pilih file backup (.json)</div>
+            </div>
+            <input type="file" id="restore-file" accept=".json" style="display:none" onchange="handleRestore(this)" />
+            <div id="restore-preview" class="hidden mt-3"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== PENGATURAN ========== -->
+    <div class="page" id="page-pengaturan">
+      <div class="config-section">
+        <div class="config-section-header">🔗 Koneksi Supabase</div>
+        <div class="config-section-body">
+          <div class="grid-2">
+            <div class="form-group">
+              <label class="form-label">Supabase URL</label>
+              <input type="text" class="form-control" id="cfg-supabase-url" placeholder="https://xxxx.supabase.co" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Supabase Anon Key</label>
+              <input type="password" class="form-control" id="cfg-supabase-key" placeholder="eyJhbGc…" />
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="saveConfig()">💾 Simpan & Uji Koneksi</button>
+          <span id="cfg-status" class="text-sm ml-2"></span>
+        </div>
+      </div>
+
+      <div class="config-section">
+        <div class="config-section-header">🏫 Info Sekolah</div>
+        <div class="config-section-body">
+          <div class="grid-2">
+            <div class="form-group">
+              <label class="form-label">Nama Sekolah</label>
+              <input type="text" class="form-control" id="cfg-school-name" placeholder="Nama Sekolah…" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Alamat</label>
+              <input type="text" class="form-control" id="cfg-school-addr" placeholder="Alamat sekolah…" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Logo Sekolah</label>
+            <div class="text-sm text-muted">Upload file <code>logo.png</code> ke repository GitHub <code>axsapari/absen9</code> dan logo akan otomatis muncul di sidebar.</div>
+          </div>
+          <button class="btn btn-primary" onclick="saveSchoolInfo()">💾 Simpan Info Sekolah</button>
+        </div>
+      </div>
+
+      <div class="config-section">
+        <div class="config-section-header">📅 Tahun Ajaran & Jam Sekolah</div>
+        <div class="config-section-body">
+          <div class="grid-2">
+            <div class="form-group">
+              <label class="form-label">Tahun Ajaran Aktif</label>
+              <input type="text" class="form-control" id="cfg-year" placeholder="2025/2026" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Semester</label>
+              <select class="form-control" id="cfg-semester">
+                <option value="1">Ganjil (1)</option>
+                <option value="2">Genap (2)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Jam Masuk (batas terlambat)</label>
+              <input type="time" class="form-control" id="cfg-late-time" value="07:00" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Jam Pulang (batas pulang awal)</label>
+              <input type="time" class="form-control" id="cfg-out-time" value="14:00" />
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="saveTimeConfig()">💾 Simpan Pengaturan Waktu</button>
+        </div>
+      </div>
+
+      <div class="config-section">
+        <div class="config-section-header">🎨 Tampilan</div>
+        <div class="config-section-body flex gap-3">
+          <span class="text-sm">Tema:</span>
+          <button class="btn btn-secondary" onclick="setTheme('light')">☀️ Terang</button>
+          <button class="btn btn-secondary" onclick="setTheme('dark')">🌙 Gelap</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ===================== MODALS ===================== -->
+
+<!-- Tambah Siswa -->
+<div class="modal-backdrop" id="modal-tambah-siswa">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-siswa-title">Tambah Siswa</span>
+      <button class="modal-close" onclick="closeModal('modal-tambah-siswa')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-siswa-id" />
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">ID Mesin Fingerprint</label>
+          <input type="number" class="form-control" id="siswa-fp-id" placeholder="Contoh: 1" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">NIS</label>
+          <input type="text" class="form-control" id="siswa-nis" placeholder="Nomor Induk Siswa" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nama Lengkap *</label>
+        <input type="text" class="form-control" id="siswa-name" placeholder="Nama siswa…" required />
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Kelas</label>
+          <select class="form-control" id="siswa-class"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Jenis Kelamin</label>
+          <select class="form-control" id="siswa-gender">
+            <option value="">—</option>
+            <option value="L">Laki-laki</option>
+            <option value="P">Perempuan</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-tambah-siswa')">Batal</button>
+      <button class="btn btn-primary" onclick="saveSiswa()">💾 Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Import Siswa -->
+<div class="modal-backdrop" id="modal-import-siswa">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Import Siswa dari Excel</span>
+      <button class="modal-close" onclick="closeModal('modal-import-siswa')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="upload-zone" onclick="document.getElementById('siswa-import-file').click()">
+        <div class="upload-zone-icon">📂</div>
+        <div class="upload-zone-text">Klik untuk pilih file Excel (.xlsx)</div>
+        <div class="upload-zone-hint">Gunakan template yang sudah diunduh</div>
+      </div>
+      <input type="file" id="siswa-import-file" accept=".xlsx,.xls" style="display:none" onchange="handleImportSiswa(this)" />
+      <div id="siswa-import-preview" class="hidden mt-3"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-import-siswa')">Tutup</button>
+      <button class="btn btn-primary hidden" id="btn-confirm-import-siswa" onclick="confirmImportSiswa()">✅ Import Sekarang</button>
+    </div>
+  </div>
+</div>
+
+<!-- Tambah Kelas -->
+<div class="modal-backdrop" id="modal-tambah-kelas">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-kelas-title">Tambah Kelas</span>
+      <button class="modal-close" onclick="closeModal('modal-tambah-kelas')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-kelas-id" />
+      <div class="form-group">
+        <label class="form-label">Nama Kelas *</label>
+        <input type="text" class="form-control" id="kelas-name" placeholder="Contoh: 9A" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Wali Kelas</label>
+        <input type="text" class="form-control" id="kelas-teacher" placeholder="Nama wali kelas…" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-tambah-kelas')">Batal</button>
+      <button class="btn btn-primary" onclick="saveKelas()">💾 Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Tambah Libur -->
+<div class="modal-backdrop" id="modal-tambah-libur">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Tambah Hari Libur Custom</span>
+      <button class="modal-close" onclick="closeModal('modal-tambah-libur')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Tanggal *</label>
+        <input type="date" class="form-control" id="libur-date" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nama Libur *</label>
+        <input type="text" class="form-control" id="libur-name" placeholder="Contoh: Ulang Tahun Sekolah" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Tipe</label>
+        <select class="form-control" id="libur-type">
+          <option value="school">Libur Sekolah</option>
+          <option value="custom">Custom / Lainnya</option>
+          <option value="national">Nasional</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-tambah-libur')">Batal</button>
+      <button class="btn btn-primary" onclick="saveLibur()">💾 Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Detail Siswa -->
+<div class="modal-backdrop" id="modal-detail-siswa">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <span class="modal-title" id="detail-siswa-name">Detail Siswa</span>
+      <button class="modal-close" onclick="closeModal('modal-detail-siswa')">✕</button>
+    </div>
+    <div class="modal-body" id="detail-siswa-body">
+      <div class="loading"><div class="spinner"></div> Memuat…</div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div id="toast-container"></div>
+
+<!-- Load App JS -->
+<script src="app.js"></script>
+</body>
+</html>
